@@ -145,7 +145,7 @@ load_ntr_statuses()
     "astrbot_plugin_animewifex",
     "monbed",
     "群二次元老婆插件修改版",
-    "1.6.5",
+    "1.6.6",
     "https://github.com/monbed/astrbot_plugin_animewifex",
 )
 class WifePlugin(Star):
@@ -207,7 +207,7 @@ class WifePlugin(Star):
         return None
 
     def parse_target(self, event: AstrMessageEvent) -> str | None:
-        """解析命令目标用户（支持@和昵称模糊匹配）"""
+        """解析命令目标用户"""
         target = self.parse_at_target(event)
         if target:
             return target
@@ -220,10 +220,9 @@ class WifePlugin(Star):
                 group_id = str(event.message_obj.group_id)
                 cfg = load_group_config(group_id)
                 for uid, data in cfg.items():
-                    if not isinstance(data, list):
-                        continue
-                    if re.search(re.escape(name), data[2], re.IGNORECASE):
-                        return uid
+                    if isinstance(data, list) and len(data) > 2:
+                        if data[2] == name:
+                            return uid
         return None
 
     # ==================== 消息处理 ====================
