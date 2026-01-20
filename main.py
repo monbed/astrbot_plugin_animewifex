@@ -144,7 +144,7 @@ load_ntr_statuses()
     "astrbot_plugin_animewifex",
     "monbed",
     "群二次元老婆插件修改版",
-    "1.6.8",
+    "1.6.9",
     "https://github.com/monbed/astrbot_plugin_animewifex",
 )
 class WifePlugin(Star):

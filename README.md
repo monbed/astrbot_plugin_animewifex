@@ -57,6 +57,8 @@ v1.6.7：修改为仅对群触发。
 
 v1.6.8：修复牛老婆和交换老婆的数据交换逻辑。
 
+v1.6.9：修复群消息监听中发送未注册命令导致的属性访问异常。
+
 ## 相关
 - [astrbot_plugin_AW](https://github.com/zgojin/astrbot_plugin_AW)
 - [Astrbot](https://astrbot.app/)
