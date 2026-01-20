@@ -55,6 +55,8 @@ v1.6.6：修改昵称匹配方式为完整昵称匹配。
 
 v1.6.7：修改为仅对群触发。
 
+v1.6.8：修复牛老婆和交换老婆的数据交换逻辑。
+
 ## 相关
 - [astrbot_plugin_AW](https://github.com/zgojin/astrbot_plugin_AW)
 - [Astrbot](https://astrbot.app/)
