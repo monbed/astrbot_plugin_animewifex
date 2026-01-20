@@ -1,8 +1,8 @@
 {
     "need_prefix": {
-        "description": "是否需要前缀唤醒bot",
+        "description": "启用触发前缀",
         "type": "bool",
-        "hint": "",
+        "hint": "是否需要前缀唤醒bot",
         "default": false
     },
     "ntr_max": {
