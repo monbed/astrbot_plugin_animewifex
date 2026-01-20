@@ -200,6 +200,8 @@ class WifePlugin(Star):
 
     def parse_at_target(self, event: AstrMessageEvent) -> str | None:
         """解析消息中的@目标用户"""
+        if not event.message_obj or not hasattr(event.message_obj, "message"):
+            return None
         for comp in event.message_obj.message:
             if isinstance(comp, At):
                 return str(comp.qq)
@@ -229,7 +231,7 @@ class WifePlugin(Star):
     @event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_all_messages(self, event: AstrMessageEvent, *args, **kwargs):
         """消息分发处理（仅群聊监听）"""
-        if not hasattr(event.message_obj, "group_id"):
+        if not event.message_obj or not hasattr(event.message_obj, "group_id"):
             return
         
         # 检查是否需要前缀唤醒
