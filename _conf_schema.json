@@ -2,7 +2,7 @@
     "need_prefix": {
         "description": "启用触发前缀",
         "type": "bool",
-        "hint": "是否需要前缀唤醒bot",
+        "hint": "启用后需要前缀来触发指令",
         "default": false
     },
     "ntr_max": {
