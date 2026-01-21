@@ -61,6 +61,8 @@ v1.6.9：修复群消息监听中发送未注册命令导致的属性访问异�
 
 v1.7.0：去除牛老婆成功立刻显示。
 
+v1.7.1：修复牛老婆成功立刻显示。
+
 ## 相关
 - [astrbot_plugin_AW](https://github.com/zgojin/astrbot_plugin_AW)
 - [Astrbot](https://astrbot.app/)
