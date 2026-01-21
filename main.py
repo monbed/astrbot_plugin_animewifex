@@ -144,7 +144,7 @@ load_ntr_statuses()
     "astrbot_plugin_animewifex",
     "monbed",
     "群二次元老婆插件修改版",
-    "1.6.9",
+    "1.7.0",
     "https://github.com/monbed/astrbot_plugin_animewifex",
 )
 class WifePlugin(Star):
@@ -420,6 +420,8 @@ class WifePlugin(Star):
             yield event.plain_result(f"{nick}，{msg}")
             return
         
+        should_show_wife = False
+        
         # 检查目标是否有老婆并执行牛操作
         async with get_config_lock(gid):
             cfg = load_group_config(gid)
@@ -447,9 +449,15 @@ class WifePlugin(Star):
                 yield event.plain_result(f"{nick}，牛老婆成功！老婆已归你所有，恭喜恭喜~")
                 if cancel_msg:
                     yield event.plain_result(cancel_msg)
+                
+                should_show_wife = True
             else:
                 rem = self.ntr_max - rec["count"]
                 yield event.plain_result(f"{nick}，很遗憾，牛失败了！你今天还可以再试{rem}次~")
+
+        if should_show_wife:
+            async for res in self.animewife(event):
+                yield res
 
     async def switch_ntr(self, event: AstrMessageEvent):
         """切换 NTR 开关（仅管理员）"""
