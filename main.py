@@ -447,10 +447,6 @@ class WifePlugin(Star):
                 yield event.plain_result(f"{nick}，牛老婆成功！老婆已归你所有，恭喜恭喜~")
                 if cancel_msg:
                     yield event.plain_result(cancel_msg)
-                
-                # 立即展示新老婆
-                async for res in self.animewife(event):
-                    yield res
             else:
                 rem = self.ntr_max - rec["count"]
                 yield event.plain_result(f"{nick}，很遗憾，牛失败了！你今天还可以再试{rem}次~")
