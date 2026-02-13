@@ -36,9 +36,6 @@ ntr_statuses = {}  # NTR 开关状态
 # ==================== 并发锁 ====================
 
 config_locks = {}      # 群组配置锁
-records_lock = asyncio.Lock()  # 记录数据锁
-swap_lock = asyncio.Lock()     # 交换请求锁
-ntr_lock = asyncio.Lock()      # NTR 状态锁
 
 
 def get_config_lock(group_id: str) -> asyncio.Lock:
@@ -122,7 +119,8 @@ def load_swap_requests():
         if valid:
             cleaned[gid] = valid
     
-    globals()["swap_requests"] = cleaned
+    swap_requests.clear()
+    swap_requests.update(cleaned)
     if raw != cleaned:
         save_json(SWAP_REQUESTS_FILE, cleaned)
 
@@ -355,15 +353,14 @@ class WifePlugin(Star):
         tid = self.parse_target(event) or str(event.get_sender_id())
         today = get_today()
         
-        async with get_config_lock(gid):
-            cfg = load_group_config(gid)
-            wife_data = cfg.get(tid)
-            
-            if not wife_data or not isinstance(wife_data, list) or wife_data[1] != today:
-                yield event.plain_result("没有发现老婆的踪迹，快去抽一个试试吧~")
-                return
-            
-            img, _, owner = wife_data
+        cfg = load_group_config(gid)
+        wife_data = cfg.get(tid)
+        
+        if not wife_data or not isinstance(wife_data, list) or wife_data[1] != today:
+            yield event.plain_result("没有发现老婆的踪迹，快去抽一个试试吧~")
+            return
+        
+        img, _, owner = wife_data
         
         name = os.path.splitext(img)[0].split("/")[-1]
         
@@ -402,16 +399,15 @@ class WifePlugin(Star):
         
         today = get_today()
         
-        async with records_lock:
-            grp = records["ntr"].setdefault(gid, {})
-            rec = grp.get(uid, {"date": today, "count": 0})
-            
-            if rec["date"] != today:
-                rec = {"date": today, "count": 0}
-            
-            if rec["count"] >= self.ntr_max:
-                yield event.plain_result(f"{nick}，你今天已经牛了{self.ntr_max}次啦，明天再来吧~")
-                return
+        grp = records["ntr"].setdefault(gid, {})
+        rec = grp.get(uid, {"date": today, "count": 0})
+        
+        if rec["date"] != today:
+            rec = {"date": today, "count": 0}
+        
+        if rec["count"] >= self.ntr_max:
+            yield event.plain_result(f"{nick}，你今天已经牛了{self.ntr_max}次啦，明天再来吧~")
+            return
         
         # 获取目标用户
         tid = self.parse_target(event)
@@ -419,8 +415,6 @@ class WifePlugin(Star):
             msg = "请@你想牛的对象，或输入完整的昵称哦~" if not tid else "不能牛自己呀，换个人试试吧~"
             yield event.plain_result(f"{nick}，{msg}")
             return
-        
-        should_show_wife = False
         
         # 检查目标是否有老婆并执行牛操作
         async with get_config_lock(gid):
@@ -430,34 +424,30 @@ class WifePlugin(Star):
                 return
             
             # 更新牛的次数
-            async with records_lock:
-                rec["count"] += 1
-                grp[uid] = rec
-                save_records()
+            rec["count"] += 1
+            grp[uid] = rec
+            save_records()
             
             # 判断牛老婆是否成功
             if random.random() < self.ntr_possibility:
                 # 牛成功：目标用户的老婆转给牛者
-                cfg.pop(uid, None)
                 cfg[uid] = [cfg[tid][0], today, nick]
                 del cfg[tid]
                 save_group_config(gid, cfg)
                 
                 # 取消相关交换请求
-                cancel_msg = await self.cancel_swap_on_wife_change(gid, [uid, tid])
+                cancel_msg = self.cancel_swap_on_wife_change(gid, [uid, tid])
                 
                 yield event.plain_result(f"{nick}，牛老婆成功！老婆已归你所有，恭喜恭喜~")
                 if cancel_msg:
                     yield event.plain_result(cancel_msg)
                 
-                should_show_wife = True
+                # 立即展示新老婆
+                async for res in self.animewife(event):
+                    yield res
             else:
                 rem = self.ntr_max - rec["count"]
                 yield event.plain_result(f"{nick}，很遗憾，牛失败了！你今天还可以再试{rem}次~")
-
-        if should_show_wife:
-            async for res in self.animewife(event):
-                yield res
 
     async def switch_ntr(self, event: AstrMessageEvent):
         """切换 NTR 开关（仅管理员）"""
@@ -469,10 +459,9 @@ class WifePlugin(Star):
             return
         
         gid = str(event.message_obj.group_id)
-        async with ntr_lock:
-            current_status = ntr_statuses.get(gid, True)
-            ntr_statuses[gid] = not current_status
-            save_ntr_statuses()
+        current_status = ntr_statuses.get(gid, True)
+        ntr_statuses[gid] = not current_status
+        save_ntr_statuses()
         
         state = "开启" if not current_status else "关闭"
         yield event.plain_result(f"{nick}，NTR已{state}")
@@ -486,14 +475,13 @@ class WifePlugin(Star):
         nick = event.get_sender_name()
         today = get_today()
         
-        async with records_lock:
-            # 检查每日换老婆次数
-            recs = records["change"].setdefault(gid, {})
-            rec = recs.get(uid, {"date": "", "count": 0})
-            
-            if rec["date"] == today and rec["count"] >= self.change_max_per_day:
-                yield event.plain_result(f"{nick}，你今天已经换了{self.change_max_per_day}次老婆啦，明天再来吧~")
-                return
+        # 检查每日换老婆次数
+        recs = records["change"].setdefault(gid, {})
+        rec = recs.get(uid, {"date": "", "count": 0})
+        
+        if rec["date"] == today and rec["count"] >= self.change_max_per_day:
+            yield event.plain_result(f"{nick}，你今天已经换了{self.change_max_per_day}次老婆啦，明天再来吧~")
+            return
         
         # 检查是否有老婆并删除
         async with get_config_lock(gid):
@@ -507,16 +495,15 @@ class WifePlugin(Star):
             save_group_config(gid, cfg)
         
         # 更新记录
-        async with records_lock:
-            if rec["date"] != today:
-                rec = {"date": today, "count": 1}
-            else:
-                rec["count"] += 1
-            recs[uid] = rec
-            save_records()
+        if rec["date"] != today:
+            rec = {"date": today, "count": 1}
+        else:
+            rec["count"] += 1
+        recs[uid] = rec
+        save_records()
         
         # 取消相关交换请求
-        cancel_msg = await self.cancel_swap_on_wife_change(gid, [uid])
+        cancel_msg = self.cancel_swap_on_wife_change(gid, [uid])
         if cancel_msg:
             yield event.plain_result(cancel_msg)
         
@@ -536,38 +523,35 @@ class WifePlugin(Star):
         # 管理员可直接重置他人
         if uid in self.admins:
             tid = self.parse_at_target(event) or uid
-            async with records_lock:
-                if gid in records["ntr"] and tid in records["ntr"][gid]:
-                    del records["ntr"][gid][tid]
-                    save_records()
+            if gid in records["ntr"] and tid in records["ntr"][gid]:
+                del records["ntr"][gid][tid]
+                save_records()
             yield event.chain_result([
                 Plain("管理员操作：已重置"), At(qq=int(tid)), Plain("的牛老婆次数。")
             ])
             return
         
         # 普通用户使用重置机会
-        async with records_lock:
-            grp = records["reset"].setdefault(gid, {})
-            rec = grp.get(uid, {"date": today, "count": 0})
-            
-            if rec.get("date") != today:
-                rec = {"date": today, "count": 0}
-            
-            if rec["count"] >= self.reset_max_uses_per_day:
-                yield event.plain_result(f"{nick}，你今天已经用完{self.reset_max_uses_per_day}次重置机会啦，明天再来吧~")
-                return
-            
-            rec["count"] += 1
-            grp[uid] = rec
-            save_records()
+        grp = records["reset"].setdefault(gid, {})
+        rec = grp.get(uid, {"date": today, "count": 0})
+        
+        if rec.get("date") != today:
+            rec = {"date": today, "count": 0}
+        
+        if rec["count"] >= self.reset_max_uses_per_day:
+            yield event.plain_result(f"{nick}，你今天已经用完{self.reset_max_uses_per_day}次重置机会啦，明天再来吧~")
+            return
+        
+        rec["count"] += 1
+        grp[uid] = rec
+        save_records()
         
         tid = self.parse_at_target(event) or uid
         
         if random.random() < self.reset_success_rate:
-            async with records_lock:
-                if gid in records["ntr"] and tid in records["ntr"][gid]:
-                    del records["ntr"][gid][tid]
-                    save_records()
+            if gid in records["ntr"] and tid in records["ntr"][gid]:
+                del records["ntr"][gid][tid]
+                save_records()
             yield event.chain_result([
                 Plain("已重置"), At(qq=int(tid)), Plain("的牛老婆次数。")
             ])
@@ -588,40 +572,37 @@ class WifePlugin(Star):
         # 管理员可直接重置他人
         if uid in self.admins:
             tid = self.parse_at_target(event) or uid
-            async with records_lock:
-                grp = records["change"].setdefault(gid, {})
-                if tid in grp:
-                    del grp[tid]
-                    save_records()
+            grp = records["change"].setdefault(gid, {})
+            if tid in grp:
+                del grp[tid]
+                save_records()
             yield event.chain_result([
                 Plain("管理员操作：已重置"), At(qq=int(tid)), Plain("的换老婆次数。")
             ])
             return
         
         # 普通用户使用重置机会
-        async with records_lock:
-            grp = records["reset"].setdefault(gid, {})
-            rec = grp.get(uid, {"date": today, "count": 0})
-            
-            if rec.get("date") != today:
-                rec = {"date": today, "count": 0}
-            
-            if rec["count"] >= self.reset_max_uses_per_day:
-                yield event.plain_result(f"{nick}，你今天已经用完{self.reset_max_uses_per_day}次重置机会啦，明天再来吧~")
-                return
-            
-            rec["count"] += 1
-            grp[uid] = rec
-            save_records()
+        grp = records["reset"].setdefault(gid, {})
+        rec = grp.get(uid, {"date": today, "count": 0})
+        
+        if rec.get("date") != today:
+            rec = {"date": today, "count": 0}
+        
+        if rec["count"] >= self.reset_max_uses_per_day:
+            yield event.plain_result(f"{nick}，你今天已经用完{self.reset_max_uses_per_day}次重置机会啦，明天再来吧~")
+            return
+        
+        rec["count"] += 1
+        grp[uid] = rec
+        save_records()
         
         tid = self.parse_at_target(event) or uid
         
         if random.random() < self.reset_success_rate:
-            async with records_lock:
-                grp2 = records["change"].setdefault(gid, {})
-                if tid in grp2:
-                    del grp2[tid]
-                    save_records()
+            grp2 = records["change"].setdefault(gid, {})
+            if tid in grp2:
+                del grp2[tid]
+                save_records()
             yield event.chain_result([
                 Plain("已重置"), At(qq=int(tid)), Plain("的换老婆次数。")
             ])
@@ -642,41 +623,37 @@ class WifePlugin(Star):
         nick = event.get_sender_name()
         today = get_today()
         
-        async with records_lock:
-            # 检查每日交换请求次数
-            grp_limit = records["swap"].setdefault(gid, {})
-            rec_lim = grp_limit.get(uid, {"date": "", "count": 0})
-            
-            if rec_lim["date"] != today:
-                rec_lim = {"date": today, "count": 0}
-            
-            if rec_lim["count"] >= self.swap_max_per_day:
-                yield event.plain_result(f"{nick}，你今天已经发起了{self.swap_max_per_day}次交换请求啦，明天再来吧~")
-                return
+        # 检查每日交换请求次数
+        grp_limit = records["swap"].setdefault(gid, {})
+        rec_lim = grp_limit.get(uid, {"date": "", "count": 0})
+        
+        if rec_lim["date"] != today:
+            rec_lim = {"date": today, "count": 0}
+        
+        if rec_lim["count"] >= self.swap_max_per_day:
+            yield event.plain_result(f"{nick}，你今天已经发起了{self.swap_max_per_day}次交换请求啦，明天再来吧~")
+            return
         
         if not tid or tid == uid:
             yield event.plain_result(f"{nick}，请在命令后@你想交换的对象哦~")
             return
         
         # 检查双方是否都有老婆
-        async with get_config_lock(gid):
-            cfg = load_group_config(gid)
-            for x in (uid, tid):
-                if x not in cfg or cfg[x][1] != today:
-                    who = nick if x == uid else "对方"
-                    yield event.plain_result(f"{who}，今天还没有老婆，无法进行交换哦~")
-                    return
+        cfg = load_group_config(gid)
+        for x in (uid, tid):
+            if x not in cfg or cfg[x][1] != today:
+                who = nick if x == uid else "对方"
+                yield event.plain_result(f"{who}，今天还没有老婆，无法进行交换哦~")
+                return
         
         # 记录交换请求
-        async with records_lock:
-            rec_lim["count"] += 1
-            grp_limit[uid] = rec_lim
-            save_records()
+        rec_lim["count"] += 1
+        grp_limit[uid] = rec_lim
+        save_records()
         
-        async with swap_lock:
-            grp = swap_requests.setdefault(gid, {})
-            grp[uid] = {"target": tid, "date": today}
-            save_swap_requests()
+        grp = swap_requests.setdefault(gid, {})
+        grp[uid] = {"target": tid, "date": today}
+        save_swap_requests()
         
         yield event.chain_result([
             Plain(f"{nick} 想和 "), At(qq=int(tid)),
@@ -690,17 +667,15 @@ class WifePlugin(Star):
         uid = self.parse_at_target(event)
         nick = event.get_sender_name()
         
-        # 检查和删除交换请求（原子操作）
-        async with swap_lock:
-            grp = swap_requests.get(gid, {})
-            rec = grp.get(uid)
-            
-            if not rec or rec.get("target") != tid:
-                yield event.plain_result(f"{nick}，请在命令后@发起者，或用\"查看交换请求\"命令查看当前请求哦~")
-                return
-            
-            # 删除请求
-            del grp[uid]
+        grp = swap_requests.get(gid, {})
+        rec = grp.get(uid)
+        
+        if not rec or rec.get("target") != tid:
+            yield event.plain_result(f"{nick}，请在命令后@发起者，或用\"查看交换请求\"命令查看当前请求哦~")
+            return
+        
+        # 删除请求
+        del grp[uid]
         
         # 执行交换
         async with get_config_lock(gid):
@@ -712,7 +687,7 @@ class WifePlugin(Star):
         save_swap_requests()
         
         # 取消相关交换请求
-        cancel_msg = await self.cancel_swap_on_wife_change(gid, [uid, tid])
+        cancel_msg = self.cancel_swap_on_wife_change(gid, [uid, tid])
         
         yield event.plain_result("交换成功！你们的老婆已经互换啦，祝幸福~")
         if cancel_msg:
@@ -725,16 +700,15 @@ class WifePlugin(Star):
         uid = self.parse_at_target(event)
         nick = event.get_sender_name()
         
-        async with swap_lock:
-            grp = swap_requests.get(gid, {})
-            rec = grp.get(uid)
-            
-            if not rec or rec.get("target") != tid:
-                yield event.plain_result(f"{nick}，请在命令后@发起者，或用\"查看交换请求\"命令查看当前请求哦~")
-                return
-            
-            del grp[uid]
-            save_swap_requests()
+        grp = swap_requests.get(gid, {})
+        rec = grp.get(uid)
+        
+        if not rec or rec.get("target") != tid:
+            yield event.plain_result(f"{nick}，请在命令后@发起者，或用\"查看交换请求\"命令查看当前请求哦~")
+            return
+        
+        del grp[uid]
+        save_swap_requests()
         
         yield event.chain_result([
             At(qq=int(uid)), Plain("，对方婉拒了你的交换请求，下次加油吧~")
@@ -749,7 +723,8 @@ class WifePlugin(Star):
         cfg = load_group_config(gid)
         
         # 获取发起的和收到的请求
-        sent_targets = [rec["target"] for uid, rec in grp.items() if uid == me]
+        my_req = grp.get(me)
+        sent_targets = [my_req["target"]] if my_req else []
         received_from = [uid for uid, rec in grp.items() if rec.get("target") == me]
         
         if not sent_targets and not received_from:
@@ -770,7 +745,7 @@ class WifePlugin(Star):
 
     # ==================== 辅助方法 ====================
 
-    async def cancel_swap_on_wife_change(self, gid: str, user_ids: list) -> str | None:
+    def cancel_swap_on_wife_change(self, gid: str, user_ids: list) -> str | None:
         """检查并取消与指定用户相关的交换请求"""
         today = get_today()
         grp = swap_requests.get(gid, {})
@@ -800,8 +775,6 @@ class WifePlugin(Star):
 
     async def terminate(self):
         """插件卸载时清理资源"""
-        global config_locks, records, swap_requests, ntr_statuses
-        
         # 清理群组配置锁
         config_locks.clear()
         
