@@ -142,7 +142,7 @@ load_ntr_statuses()
     "astrbot_plugin_animewifex",
     "monbed",
     "群二次元老婆插件修改版",
-    "1.7.1",
+    "1.7.2",
     "https://github.com/monbed/astrbot_plugin_animewifex",
 )
 class WifePlugin(Star):
@@ -431,7 +431,8 @@ class WifePlugin(Star):
             # 判断牛老婆是否成功
             if random.random() < self.ntr_possibility:
                 # 牛成功：目标用户的老婆转给牛者
-                cfg[uid] = [cfg[tid][0], today, nick]
+                img = cfg[tid][0]
+                cfg[uid] = [img, today, nick]
                 del cfg[tid]
                 save_group_config(gid, cfg)
                 
@@ -442,9 +443,8 @@ class WifePlugin(Star):
                 if cancel_msg:
                     yield event.plain_result(cancel_msg)
                 
-                # 立即展示新老婆
-                async for res in self.animewife(event):
-                    yield res
+                # 直接展示抢到的老婆
+                yield event.chain_result(self._build_wife_message(img, nick))
             else:
                 rem = self.ntr_max - rec["count"]
                 yield event.plain_result(f"{nick}，很遗憾，牛失败了！你今天还可以再试{rem}次~")
