@@ -10,7 +10,21 @@
 
 配套图床：https://github.com/monbed/wife
 
-从GitHub获取：如果你的BOT能够正常访问GitHub获取图片，图片服务器基础 URL填写：https://raw.githubusercontent.com/monbed/wife/main/ 图片列表 URL填写：https://animewife.dpdns.org/list.txt
+从GitHub获取：
+
+如果你的BOT能够正常访问GitHub获取图片
+
+图片服务器基础 URL填写：https://raw.githubusercontent.com/monbed/wife/main/
+
+图片列表 URL填写：https://animewife.dpdns.org/list.txt
+
+或者使用可以直连的反代（自行测试网络问题）如：
+
+https://fastly.jsdelivr.net/gh/monbed/wife@main/
+
+https://cdn.jsdmirror.com/gh/monbed/wife@main/
+
+图片列表同上
 
 也可以手动下载图片，放入AstrBot\data\plugin_data\astrbot_plugin_animewifex\img\wife目录。
 
