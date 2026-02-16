@@ -142,7 +142,7 @@ load_ntr_statuses()
     "astrbot_plugin_animewifex",
     "monbed",
     "群二次元老婆插件修改版",
-    "1.7.2",
+    "1.7.3",
     "https://github.com/monbed/astrbot_plugin_animewifex",
 )
 class WifePlugin(Star):
@@ -165,7 +165,7 @@ class WifePlugin(Star):
         self.reset_max_uses_per_day = self.config.get("reset_max_uses_per_day")
         self.reset_success_rate = self.config.get("reset_success_rate")
         self.reset_mute_duration = self.config.get("reset_mute_duration")
-        self.image_base_url = self.config.get("image_base_url", "").rstrip("/") + "/"
+        self.image_base_url = self.config.get("image_base_url").rstrip("/") + "/"
         self.image_list_url = self.config.get("image_list_url")
 
     def _init_commands(self):

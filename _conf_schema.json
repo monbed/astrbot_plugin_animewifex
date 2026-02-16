@@ -57,6 +57,6 @@
         "description": "图片列表 URL",
         "type": "string",
         "default": "https://animewife.dpdns.org/list.txt",
-        "hint": "用于获取图片文件名列表的 URL (如果你是用Deno Deploy部署，这项不需要填写)"
+        "hint": "用于获取图片文件名列表的地址"
     }
 }

@@ -79,6 +79,8 @@ v1.7.1：修复牛老婆成功立刻显示。
 
 v1.7.2：精简代码。
 
+v1.7.3：修改默认URL。
+
 ## 相关
 - [astrbot_plugin_AW](https://github.com/zgojin/astrbot_plugin_AW)
 - [Astrbot](https://astrbot.app/)
