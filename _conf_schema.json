@@ -50,13 +50,13 @@
     "image_base_url": {
         "description": "图片服务器基础 URL",
         "type": "string",
-        "default": "",
+        "default": "https://cdn.jsdmirror.com/gh/monbed/wife@main",
         "hint": "用于拼接图片链接的基础地址"
     },
     "image_list_url": {
         "description": "图片列表 URL",
         "type": "string",
-        "default": "",
+        "default": "https://animewife.dpdns.org/list.txt",
         "hint": "用于获取图片文件名列表的 URL (如果你是用Deno Deploy部署，这项不需要填写)"
     }
 }
